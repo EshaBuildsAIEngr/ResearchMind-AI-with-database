@@ -38,6 +38,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="ResearchMind AI — production backend",
     version="1.0.0",
+    root_path=os.getenv("ROOT_PATH", ""),
 )
 
 # ---------------- CORS ----------------
