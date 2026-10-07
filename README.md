@@ -72,6 +72,8 @@ Open http://localhost:5173
 
 ### 3. Production
 
+- **UAT server (systemd service name, log path, deploy commands): see [`SERVER.md`](./SERVER.md).**
+
 - Swap `DATABASE_URL` in `backend/.env` to Postgres — no code changes needed.
 - `uvicorn app.main:app --workers 4` for multiple workers.
 - `npm run build` in `frontend/` → deploy the `dist/` folder to any static host.

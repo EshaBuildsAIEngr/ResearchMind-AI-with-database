@@ -10,6 +10,7 @@ Streamlit hang):
 import asyncio
 import logging
 import os
+import sys
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,6 +62,36 @@ app.add_middleware(
 @app.on_event("startup")
 async def _capture_main_event_loop():
     broadcaster.set_main_loop(asyncio.get_running_loop())
+
+
+# Fails loudly instead of silently 404ing every streaming run: if uvicorn has
+# no usable WebSocket protocol (neither `websockets` nor `wsproto` importable —
+# e.g. uvicorn installed without its [standard] extra, or an incompatible
+# websockets major), it refuses every upgrade and serves /ws/agents/* as a
+# plain HTTP GET, which Starlette answers with 404.
+def _websocket_protocol_missing() -> bool:
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--ws" and i + 1 < len(args):
+            return args[i + 1] == "none"
+        if arg.startswith("--ws="):
+            return arg.split("=", 1)[1] == "none"
+    try:
+        from uvicorn.protocols.websockets.auto import AutoWebSocketsProtocol
+    except ImportError:
+        return True
+    return AutoWebSocketsProtocol is None
+
+
+@app.on_event("startup")
+async def _warn_if_websockets_unavailable():
+    if _websocket_protocol_missing():
+        logger.error(
+            "WebSocket support is NOT available in this environment — every "
+            "/ws/agents/{run_id} handshake will be answered with 404. "
+            "Install a compatible library (pip install 'uvicorn[standard]' or "
+            "pip install 'websockets>=12') and restart."
+        )
 
 
 # ---------------- Global error handler ----------------

@@ -74,7 +74,11 @@ export default function AgentLauncherView({ agentType }) {
       await runAgent(agentType, question.trim(), selectedIds)
       setQuestion('')
     } catch (err) {
-      setError(err.response?.data?.detail || 'The agent run failed.')
+      setError(
+        err?.agentStreamFailure
+          ? err.message
+          : err.response?.data?.detail || 'The agent run failed.'
+      )
     } finally {
       setSubmitting(false)
     }

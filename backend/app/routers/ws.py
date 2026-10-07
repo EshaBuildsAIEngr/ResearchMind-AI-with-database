@@ -11,6 +11,7 @@ ws://<host>/ws/agents/{run_id}?token=<access_token>
 
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -19,6 +20,8 @@ from app.core.database import SessionLocal
 from app.core.deps import get_user_from_token_string
 from app.models import AgentRun
 from app.services import broadcaster
+
+logger = logging.getLogger("researchmind")
 
 router = APIRouter(tags=["websocket"])
 
@@ -29,11 +32,17 @@ async def agent_run_stream(websocket: WebSocket, run_id: str, token: str = ""):
     try:
         user = get_user_from_token_string(token, db) if token else None
         if not user:
+            # Closed BEFORE accept, so uvicorn only shows a generic handshake
+            # failure in its access log — log the real reason here.
+            logger.warning("WS /ws/agents/%s rejected: missing/invalid/expired token.", run_id)
             await websocket.close(code=4401)
             return
 
         run = db.query(AgentRun).filter(AgentRun.id == run_id, AgentRun.user_id == user.id).first()
         if not run:
+            logger.warning(
+                "WS /ws/agents/%s rejected: no run with that id for this user.", run_id
+            )
             await websocket.close(code=4404)
             return
 
